@@ -28,7 +28,6 @@ typedef struct bmpInfoHeader
   uint32_t imxtcolors;      /* Colores importantes. 0 si son todos */
 } bmpInfoHeader;
 
-
 unsigned char *abrirBMP(char *filename, bmpInfoHeader *bInfoHeader);
 void guardarBMP(char *filename, bmpInfoHeader *info, unsigned char *imgdata);
 void displayInfo(bmpInfoHeader *info);

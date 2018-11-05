@@ -10,27 +10,23 @@
 #include <stdint.h>
 
 #define PUERTO 5000
-#define TAM_BUFFER 100
+#define TAM_BUFFER 512
 #define BUFFSIZE 1
 #define	ERROR	-1
 #define DIR_IP "192.168.100.7"
+#define URL    "calle1.bmp"
 
-unsigned char *imagenRGB;
+unsigned char *imagenRGB, *imagenGray;
 bmpInfoHeader info;
 FILE *archivo;
 
 int main(int argc, char **argv)
 {
-	int tamano_direccion, sockfd;
+	int sockfd;
 	struct sockaddr_in direccion_servidor;
 	char leer_mensaje[TAM_BUFFER];
-	char buffer[BUFFSIZE];
 
-	printf("Abriendo la imagen !!! \n");
-	imagenRGB = abrirBMP("calle1.bmp", &info);
 	displayInfo( &info );
-
-	archivo = fopen("calle1.bmp","rb");
 	printf("-----------------------------------------------\n");
 /*	
  *	AF_INET - Protocolo de internet IPV4
@@ -71,16 +67,23 @@ int main(int argc, char **argv)
 	}
 /*
  *	Inicia la transferencia de datos entre cliente y servidor
- */
-	/*Se envia el archivo*/
-	while(!feof(archivo)){
-		fread(buffer,sizeof(char),BUFFSIZE,archivo);
-		if(send(sockfd,buffer,BUFFSIZE,0) == ERROR)
-			perror("Error al enviar el arvhivo:");
+	*/
+	printf("Abriendo la imagen !!! \n");
+	archivo = fopen("calle1.bmp", "rb");
+	if(archivo == NULL){
+		perror("Archivo No encontrado");
+		exit(1);
 	}
+	printf("Comenzando a enviar imagen\n");
 
-	/*printf ("Recibiendo contestacion del servidor ...\n");
-	if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
+	int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
+	while(!feof(archivo)){
+		send(sockfd, leer_mensaje, byteread,0);
+		byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
+
+	}
+	printf ("Recibiendo contestacion del servidor ...\n");
+	/*if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
 	{	
 		perror ("Ocurrio algun problema al recibir datos del cliente");
 		exit(1);
@@ -92,7 +95,6 @@ int main(int argc, char **argv)
  *	Cierre de la conexion
  */
 	fclose(archivo);
-	free(imagenRGB);
 	close(sockfd);
 
 	return 0;
@@ -108,3 +110,4 @@ unsigned char *reservarMemoria(uint32_t width, uint32_t height) {
 	}
 	return imagen;
 }
+ 

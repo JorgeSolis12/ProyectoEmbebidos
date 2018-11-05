@@ -13,9 +13,8 @@
 
 #define PUERTO 			5000	//Número de puerto asignado al servidor
 #define COLA_CLIENTES 	5 		//Tamaño de la cola de espera para clientes
-#define TAM_BUFFER 		100
+#define TAM_BUFFER 		512
 #define EVER            1 
-#define BUFFSIZE        1
 #define ERROR           -1
 #define DIMASK          3 //especifica las dimensiones de la mascara, aqui especificamos una de 3x3
 #define SIGMA           2
@@ -29,15 +28,13 @@ unsigned char *reservarMemoria(uint32_t width, uint32_t height);
 
 bmpInfoHeader info;
 pthread_mutex_t bloqueo;
-unsigned char *imagenRev, *imagenGray, *imagenFiltro;
+unsigned char *imagenRGB, *imagenGray, *imagenFiltro;
 
 int main(int argc, char **argv)
 {
       pid_t pid;
    	int sockfd, cliente_sockfd;
    	struct sockaddr_in direccion_servidor; //Estructura de la familia AF_INET, que almacena direccion
-   	char leer_mensaje[TAM_BUFFER];
-      FILE *archivo;
       register int nh;
       pthread_t tids[NUM_HILOS];
       int nhs[NUM_HILOS] , *res;
@@ -107,65 +104,65 @@ for(;EVER;){
 /*
  *	Inicia la transferencia de datos entre cliente y servidor
  */
-      	printf("Se aceptó un cliente, atendiendolo \n");
-      	if( read (cliente_sockfd, &leer_mensaje, TAM_BUFFER) < 0 )
+         char buffer[TAM_BUFFER];
+         printf("Se aceptó un cliente, atendiendolo \n");
+      	/*if( read (cliente_sockfd, buffer, TAM_BUFFER) < 0 )
    	   {
    		perror ("Ocurrio algun problema al recibir datos del cliente");
    		exit(1);
       	}
-         char buffer[BUFFSIZE];
-         int recibido = -1;
+         if( write (cliente_sockfd, "Bienvenido Cliente", 19) < 0 )
+         {
+            perror("Ocurrio un problema en el envio de un mensaje al cliente");
+            exit(1);
+         }*/
+         printf("Comenzando a recibir datos\n");
+         
+         FILE* archivo = fopen("Sobel_Rev.bmp", "wb");
 
-          /*Se abre el archivo para escritura*/
-         while((recibido = recv(sockfd, buffer, BUFFSIZE, 0)) > 0){
-            printf("%s",buffer);
-            fwrite(buffer,sizeof(char),1,archivo);
+         //Se abre el archivo para escritura
+         int recibido ;
+         while((recibido= recv(cliente_sockfd,buffer, TAM_BUFFER, 0)) != 0){
+            printf("recibiendo... \n");
+            fwrite(buffer,sizeof(unsigned char),recibido,archivo);
+            fflush(stdout);
          }
-
          fclose(archivo);
          printf("Archivo Recibido!!!!!!!!!!\n");
-
-         imagenRev = abrirBMPEnviado(&info,archivo);
-         imagenGray = RGBtoGray( imagenRev,  info.width, info.height);
-         imagenFiltro = reservarMemoria (info.width, info.height);
-
-         printf("creando hilos \n");
-         for(nh =0; nh<NUM_HILOS; nh++){
-            nhs[nh] = nh;
-            pthread_create(&tids[nh], NULL,filtroImagen,(void*)&nhs[nh]);
-         }
-         for(nh =0; nh<NUM_HILOS; nh++){
-
-            pthread_join(tids[nh], (void **)&res);
-         }
-
-         pthread_mutex_destroy(&bloqueo);
-         GraytoRGB(imagenFiltro, imagenRev, info.width, info.height) ;
-
-         guardarBMP( "Sobel_paralelo.bmp", &info, imagenRev);
-/*
-      	printf ("El cliente nos envio el siguiente mensaje: \n %s \n", leer_mensaje);
-      	if( write (cliente_sockfd, "Bienvenido cliente", 19) < 0 )
-   	  {
-   		perror("Ocurrio un problema en el envio de un mensaje al cliente");
-   		exit(1);
-      	}
-*/
+         
       	printf("Concluimos la ejecución de la aplicacion Servidor \n");
-   /*
-    *	Cierre de las conexiones
-    */
 
-      	close (cliente_sockfd);
+      imagenRGB = abrirBMP("Sobel_Rev.bmp",&info);
+      imagenGray = RGBtoGray(imagenRGB, info.width, info.height);
+      imagenFiltro = reservarMemoria (info.width, info.height);
+
+      printf("creando hilos \n");
+      for(nh =0; nh<NUM_HILOS; nh++){
+         nhs[nh] = nh;
+         pthread_create(&tids[nh], NULL,filtroImagen,(void*)&nhs[nh]);
+      }
+      for(nh =0; nh<NUM_HILOS; nh++){
+
+         pthread_join(tids[nh], (void **)&res);
+      }
+
+      pthread_mutex_destroy(&bloqueo);
+      GraytoRGB(imagenFiltro, imagenRGB, info.width, info.height) ;
+
+      guardarBMP( "Sobel_paralelo.bmp", &info, imagenRGB);
+      
+      free(imagenGray);
+ /*
+    * Cierre de las conexiones
+    */
+         close (cliente_sockfd);
          kill(getppid(),SIGUSR1);
          exit(0);
          //fin del proceso Hijo
       }
       
 }
-      free(imagenGray);
       close (sockfd);
-
 	return 0;
 }
 
@@ -177,32 +174,6 @@ void ISRsw(int sig){
       pid = wait( &status );
       printf("señal recibida y proceso terminado del hijo %d \n", pid);
    }
-}
-
-unsigned char *RGBtoGray( unsigned char *imagenRGB, uint32_t width, uint32_t height)
-{
-   register int y,x ;
-   int indiceRGB, indiceGray;
-   unsigned char grayLevel;
-   unsigned char *imagenGray;
-   imagenGray = reservarMemoria(width,height);
-   if(imagenGray == NULL)
-   {
-      perror("Error al asignar memoria \n");
-      exit(EXIT_FAILURE);
-   }
-
-   for ( y = 0; y < height ; y++ )
-      for ( x = 0; x < width; x++ )
-      {
-         indiceGray = (width * y + x);
-         //indiceRGB = indiceGray * 3 ;//multiplicar por 3 con corrimientos
-         indiceRGB = ((indiceGray << 1) + indiceGray);
-         grayLevel = (30*imagenRGB[indiceRGB]+59*imagenRGB[indiceRGB+1]+11*imagenRGB[indiceRGB+2])/100;
-         imagenGray[indiceGray] = grayLevel;
-      }
-   printf("Imagen en Escala de grises creada\n");
-   return imagenGray;
 }
 
 void *filtroImagen(void *arg){
@@ -327,4 +298,30 @@ void GraytoRGB( unsigned char *imagenGray, unsigned char *imagenRGB, uint32_t wi
          imagenRGB[indiceRGB+2] = imagenGray [indiceGray];
 
       }
+}
+
+unsigned char *RGBtoGray( unsigned char *imagenRGB, uint32_t width, uint32_t height)
+{
+   register int y,x ;
+   int indiceRGB, indiceGray;
+   unsigned char grayLevel;
+   unsigned char *imagenGray;
+   imagenGray = reservarMemoria(width,height);
+   if(imagenGray == NULL)
+   {
+      perror("Error al asignar memoria \n");
+      exit(EXIT_FAILURE);
+   }
+
+   for ( y = 0; y < height ; y++ )
+      for ( x = 0; x < width; x++ )
+      {
+         indiceGray = (width * y + x);
+         //indiceRGB = indiceGray * 3 ;//multiplicar por 3 con corrimientos
+         indiceRGB = ((indiceGray << 1) + indiceGray);
+         grayLevel = (30*imagenRGB[indiceRGB]+59*imagenRGB[indiceRGB+1]+11*imagenRGB[indiceRGB+2])/100;
+         imagenGray[indiceGray] = grayLevel;
+      }
+   printf("Imagen en Escala de grises creada\n");
+   return imagenGray;
 }
