@@ -13,18 +13,21 @@
 #define TAM_BUFFER 512
 #define BUFFSIZE 1
 #define	ERROR	-1
-#define DIR_IP "192.168.100.7"
+//#define DIR_IP "192.168.100.7"
+#define DIR_IP "192.168.100.181"
 #define URL    "calle1.bmp"
 
 unsigned char *imagenRGB, *imagenGray;
 bmpInfoHeader info;
 FILE *archivo;
+FILE *fr;
 
 int main(int argc, char **argv)
 {
 	int sockfd;
 	struct sockaddr_in direccion_servidor;
 	char leer_mensaje[TAM_BUFFER];
+	char revbuf[TAM_BUFFER];
 
 	displayInfo( &info );
 	printf("-----------------------------------------------\n");
@@ -76,25 +79,123 @@ int main(int argc, char **argv)
 	}
 	printf("Comenzando a enviar imagen\n");
 
-	int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
+	/*int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
 	while(!feof(archivo)){
 		send(sockfd, leer_mensaje, byteread,0);
 		byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
 
 	}
+	fclose(archivo);
 	printf ("Recibiendo contestacion del servidor ...\n");
-	/*if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
+	if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
 	{	
 		perror ("Ocurrio algun problema al recibir datos del cliente");
 		exit(1);
 	}
+
 	
-	printf ("El servidor envio el siguiente mensaje: \n%s\n", leer_mensaje);*/
-	printf ("Cerrando la aplicacion cliente\n");
-/*
+	//printf ("El servidor envio el siguiente mensaje: \n%s\n", leer_mensaje);
+	FILE* archivo = fopen("Sobel_paralelo2.bmp", "wb");
+
+         //Se abre el archivo para escritura
+         int recibido ;
+         while((recibido= recv(sockfd,leer_mensaje, TAM_BUFFER, 0)) != 0){
+            printf("recibiendo... \n");
+            fwrite(leer_mensaje,sizeof(unsigned char),recibido,archivo);
+            fflush(stdout);
+         }
+         fclose(archivo);
+         printf("Archivo Recibido!!!!!!!!!!\n");
+	//Receive File from Server 
+	fr = fopen("Sobel_paralelo2.bmp", "a");
+	if(fr == NULL){
+		perror("No se pudo abrir archivo");
+		exit(EXIT_FAILURE);
+	}
+	else{
+	    bzero(revbuf, TAM_BUFFER); 
+	    int fr_block_sz = 0;
+	        while((fr_block_sz = recv(sockfd, revbuf, TAM_BUFFER, 0))>= 0){
+	            if(fr_block_sz == 0){
+	                perror("Error en archivo recivido.\n");
+	                exit(EXIT_FAILURE);
+	            }
+	            int write_sz = fwrite(revbuf, sizeof(unsigned char), fr_block_sz, fr);
+	            if(write_sz < fr_block_sz){
+	                perror("Error, archivo no escrito.\n");
+	                exit(EXIT_FAILURE);
+	            }
+	            bzero(revbuf, TAM_BUFFER);
+	        }
+			if(fr_block_sz < 0){
+                perror("Error en archivo recibido.\n");
+                exit(EXIT_FAILURE);
+            }
+	        printf("Ok received from server!\n");
+	        fclose(fr);
+         */
+	/* Send File to Server */
+	//if(!fork())
+	//{
+		char sdbuf[TAM_BUFFER]; 
+		FILE *fs = fopen("calle1.bmp", "r");
+		if(fs == NULL)
+		{
+			printf("ERROR: Archivo no encontrado.\n");
+			exit(1);
+		}
+
+		bzero(sdbuf, TAM_BUFFER); 
+		int fs_block_sz; 
+		while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs)) > 0)
+		{
+		    if(send(sockfd, sdbuf, fs_block_sz, 0) < 0)
+		    {
+		        perror("Error al abirir el archivo");
+		        exit(EXIT_FAILURE);
+		        break;
+		    }
+		    bzero(sdbuf, TAM_BUFFER);
+		}
+		printf("Ok File from Client was Sent!\n");
+	//}
+
+	/* Receive File from Server */
+	printf("Recibiendo archivo del cliente");
+	FILE *fr = fopen("Sobel_paralelo2.bmp", "a");
+	if(fr == NULL)
+		printf("No se pudo abrir el archivo.\n");
+	else
+	{
+		bzero(revbuf, TAM_BUFFER); 
+		int fr_block_sz = 0;
+	    while((fr_block_sz = recv(sockfd, revbuf, TAM_BUFFER, 0)) > 0)
+	    {
+			int write_sz = fwrite(revbuf, sizeof(char), fr_block_sz, fr);
+	        if(write_sz < fr_block_sz)
+			{
+	            perror("File write failed.\n");
+	            exit(EXIT_FAILURE);
+	        }
+			bzero(revbuf, TAM_BUFFER);
+			if (fr_block_sz == 0 || fr_block_sz != 512) 
+			{
+				break;
+			}
+		}
+		if(fr_block_sz < 0)
+        {
+			printf("error en el recv\n");
+			exit(EXIT_FAILURE);
+		}
+	    printf("Ok received from server!\n");
+	    fclose(fr);
+	}
+		printf ("Cerrando la aplicacion cliente\n");
+	
+/*	
  *	Cierre de la conexion
  */
-	fclose(archivo);
 	close(sockfd);
 
 	return 0;
@@ -110,4 +211,3 @@ unsigned char *reservarMemoria(uint32_t width, uint32_t height) {
 	}
 	return imagen;
 }
- 

@@ -28,7 +28,7 @@ unsigned char *reservarMemoria(uint32_t width, uint32_t height);
 
 bmpInfoHeader info;
 pthread_mutex_t bloqueo;
-unsigned char *imagenRGB, *imagenGray, *imagenFiltro;
+unsigned char *imagenRGB, *imagenGray, *imagenFiltro, *imagenRev;
 
 int main(int argc, char **argv)
 {
@@ -38,6 +38,10 @@ int main(int argc, char **argv)
       register int nh;
       pthread_t tids[NUM_HILOS];
       int nhs[NUM_HILOS] , *res;
+      char leer_mensaje[TAM_BUFFER];
+      char sdbuf[TAM_BUFFER];
+      char revbuf[TAM_BUFFER];
+
 /*	
  *	AF_INET - Protocolo de internet IPV4
  *  htons - El ordenamiento de bytes en la red es siempre big-endian, por lo que
@@ -118,10 +122,10 @@ for(;EVER;){
          }*/
          printf("Comenzando a recibir datos\n");
          
-         FILE* archivo = fopen("Sobel_Rev.bmp", "wb");
+         //FILE* archivo = fopen("Sobel_Rev.bmp", "wb");
 
          //Se abre el archivo para escritura
-         int recibido ;
+         /*int recibido ;
          while((recibido= recv(cliente_sockfd,buffer, TAM_BUFFER, 0)) != 0){
             printf("recibiendo... \n");
             fwrite(buffer,sizeof(unsigned char),recibido,archivo);
@@ -129,8 +133,38 @@ for(;EVER;){
          }
          fclose(archivo);
          printf("Archivo Recibido!!!!!!!!!!\n");
-         
-      	printf("Concluimos la ejecución de la aplicacion Servidor \n");
+         */
+      	
+      /*Receive File from Client */
+      FILE *fr = fopen("Sobel_Rev.bmp", "a");
+      if(fr == NULL){
+         perror("No se pudo abrir el archivo\n");
+         exit(EXIT_FAILURE);
+      }
+      else
+      {
+         bzero(revbuf, TAM_BUFFER); 
+         int fr_block_sz = 0;
+         while((fr_block_sz = recv(cliente_sockfd, revbuf, TAM_BUFFER, 0)) > 0) 
+         {
+             int write_sz = fwrite(revbuf, sizeof(unsigned char), fr_block_sz, fr);
+            if(write_sz < fr_block_sz){
+                 perror("Error al escribir el archivo.\n");
+                 exit(EXIT_FAILURE);
+             }
+            bzero(revbuf, TAM_BUFFER);
+            if (fr_block_sz == 0 || fr_block_sz !=512){
+               break;
+            }
+         }
+         if(fr_block_sz < 0){
+              
+            perror("Error al recibir el archivo");
+            exit(EXIT_FAILURE);
+         }
+         printf("Ok received from client!\n");
+         fclose(fr); 
+      }
 
       imagenRGB = abrirBMP("Sobel_Rev.bmp",&info);
       imagenGray = RGBtoGray(imagenRGB, info.width, info.height);
@@ -150,22 +184,76 @@ for(;EVER;){
       GraytoRGB(imagenFiltro, imagenRGB, info.width, info.height) ;
 
       guardarBMP( "Sobel_paralelo.bmp", &info, imagenRGB);
-      
+      //printf("Enviando imagen a cliente \n");
+
+      /*archivo = fopen("Sobel_paralelo.bmp", "rb");
+      if(archivo == NULL){
+         perror("Archivo No encontrado");
+         exit(1);
+      }*/
+      /* Send File to Client */
+
+           /*printf("Enviando archivo");
+           FILE *fs = fopen("Sobel_paralelo", "r");
+           if(fs == NULL)
+           {
+             printf("ERROR: al enviar el archivo");
+             exit(1);
+           }
+
+           bzero(sdbuf, TAM_BUFFER); 
+           int fs_block_sz; 
+           while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs))>0)
+           {
+               if(send(cliente_sockfd, sdbuf, fs_block_sz, 0) < 0)
+               {
+                   printf("ERROR:Al enviar el archivo ");
+                   exit(1);
+               }
+               bzero(sdbuf, TAM_BUFFER);
+           }
+           printf("Ok sent to client!\n");
+   }*/
+}
+      /* Send File to Client */
+      //if(!fork())
+      //{
+          printf("Enviando archivo");
+          FILE *fs = fopen("Sobel_paralelo.bmp", "r");
+          if(fs == NULL)
+          {
+            perror("Error al leer el archivo");
+            exit(EXIT_FAILURE);
+          }
+
+          bzero(sdbuf, TAM_BUFFER); 
+          int fs_block_sz; 
+          while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs))>0)
+          {
+              if(send(cliente_sockfd, sdbuf, fs_block_sz, 0) < 0)
+              {
+               perror("Error al enviar el archivo");
+               exit(EXIT_FAILURE);
+              }
+              bzero(sdbuf, TAM_BUFFER);
+          }
+          printf("Ok sent to client!\n");
+          printf("Concluimos la ejecución de la aplicacion Servidor \n");
+
       free(imagenGray);
  /*
     * Cierre de las conexiones
     */
+      }
          close (cliente_sockfd);
          kill(getppid(),SIGUSR1);
          exit(0);
          //fin del proceso Hijo
-      }
-      
-}
+
       close (sockfd);
 	return 0;
-}
 
+}
 void ISRsw(int sig){
    
    int status;
@@ -184,11 +272,11 @@ void *filtroImagen(void *arg){
    int final= inicio+tambloque;
    register int x,y,xm,ym;
    int conv1,conv2, indice,indicem;
-   char GradF[] =
+   int GradF[] =
             {1,0,-1,
              2,0,-2,
              1,0,-1};
-   char GradC[] =
+   int GradC[] =
             {-1,-2,-1,
               0, 0,-0,
               1, 2, 1};
