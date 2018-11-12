@@ -8,13 +8,14 @@
 #include <math.h>
 #include "ClienteTCP.h"
 #include <stdint.h>
+#include <errno.h>
 
 #define PUERTO 5000
 #define TAM_BUFFER 512
 #define BUFFSIZE 1
 #define	ERROR	-1
-//#define DIR_IP "192.168.100.7"
-#define DIR_IP "192.168.100.181"
+#define DIR_IP "192.168.100.7"
+//#define DIR_IP "192.168.100.181"
 #define URL    "calle1.bmp"
 
 unsigned char *imagenRGB, *imagenGray;
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
 	}
 	printf("Comenzando a enviar imagen\n");
 
-	/*int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
+	int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
 	while(!feof(archivo)){
 		send(sockfd, leer_mensaje, byteread,0);
 		byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),archivo);
@@ -87,15 +88,15 @@ int main(int argc, char **argv)
 	}
 	fclose(archivo);
 	printf ("Recibiendo contestacion del servidor ...\n");
-	if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
+	/*if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
 	{	
 		perror ("Ocurrio algun problema al recibir datos del cliente");
 		exit(1);
-	}
+	}*/
 
 	
 	//printf ("El servidor envio el siguiente mensaje: \n%s\n", leer_mensaje);
-	FILE* archivo = fopen("Sobel_paralelo2.bmp", "wb");
+	/*FILE* archivo = fopen("Sobel_paralelo2.bmp", "wb");
 
          //Se abre el archivo para escritura
          int recibido ;
@@ -105,8 +106,8 @@ int main(int argc, char **argv)
             fflush(stdout);
          }
          fclose(archivo);
-         printf("Archivo Recibido!!!!!!!!!!\n");
-	//Receive File from Server 
+         printf("Archivo Recibido!!!!!!!!!!\n");*/
+	/*Receive File from Server 
 	fr = fopen("Sobel_paralelo2.bmp", "a");
 	if(fr == NULL){
 		perror("No se pudo abrir archivo");
@@ -137,41 +138,50 @@ int main(int argc, char **argv)
 	/* Send File to Server */
 	//if(!fork())
 	//{
+		/*char* fs_name = "calle1.bmp";
 		char sdbuf[TAM_BUFFER]; 
-		FILE *fs = fopen("calle1.bmp", "r");
+		printf("[Client] Sending %s to the Server... ", fs_name);
+		FILE *fs = fopen(fs_name, "r");
 		if(fs == NULL)
 		{
-			printf("ERROR: Archivo no encontrado.\n");
+			printf("ERROR: File %s not found.\n", fs_name);
 			exit(1);
 		}
 
 		bzero(sdbuf, TAM_BUFFER); 
 		int fs_block_sz; 
-		while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs)) > 0)
+		while((fs_block_sz = fread(sdbuf,1, sizeof(sdbuf), fs)) > 0)
 		{
 		    if(send(sockfd, sdbuf, fs_block_sz, 0) < 0)
 		    {
-		        perror("Error al abirir el archivo");
-		        exit(EXIT_FAILURE);
+		        fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
 		        break;
 		    }
 		    bzero(sdbuf, TAM_BUFFER);
 		}
-		printf("Ok File from Client was Sent!\n");
-	//}
+		printf("Ok File %s from Client was Sent!\n", fs_name);
+	//}*/
 
 	/* Receive File from Server */
-	printf("Recibiendo archivo del cliente");
-	FILE *fr = fopen("Sobel_paralelo2.bmp", "a");
+	printf("[Client] Receiveing file from Server and saving it as final.txt...");
+	char* fr_name = "Sobel_paralelo2.bmp";
+	FILE *fr = fopen(fr_name, "a");
 	if(fr == NULL)
-		printf("No se pudo abrir el archivo.\n");
+		printf("File %s Cannot be opened.\n", fr_name);
 	else
 	{
-		bzero(revbuf, TAM_BUFFER); 
-		int fr_block_sz = 0;
-	    while((fr_block_sz = recv(sockfd, revbuf, TAM_BUFFER, 0)) > 0)
+		bzero(revbuf, TAM_BUFFER);
+		int recibido ;
+         while((recibido= recv(sockfd,revbuf, TAM_BUFFER, 0)) != 0){
+            printf("recibiendo... \n");
+            fwrite(revbuf,sizeof(unsigned char),recibido,fr);
+            fflush(stdout);
+         }
+         fclose(archivo); 
+		//int fr_block_sz = 0;
+	    /*while((fr_block_sz = recv(sockfd, revbuf, TAM_BUFFER, 0)) > 0)
 	    {
-			int write_sz = fwrite(revbuf, sizeof(char), fr_block_sz, fr);
+			int write_sz = fwrite(revbuf, sizeof(unsigned char), fr_block_sz, fr);
 	        if(write_sz < fr_block_sz)
 			{
 	            perror("File write failed.\n");
@@ -185,9 +195,15 @@ int main(int argc, char **argv)
 		}
 		if(fr_block_sz < 0)
         {
-			printf("error en el recv\n");
-			exit(EXIT_FAILURE);
-		}
+			if (errno == EAGAIN)
+			{
+				printf("recv() timed out.\n");
+			}
+			else
+			{
+				fprintf(stderr, "recv() failed due to errno = %d\n", errno);
+			}
+		}*/
 	    printf("Ok received from server!\n");
 	    fclose(fr);
 	}

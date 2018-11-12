@@ -10,10 +10,11 @@
 #include <pthread.h>
 #include <math.h>
 #include "ClienteTCP.h"
+#include <errno.h>
 
-#define PUERTO 			5000	//Número de puerto asignado al servidor
-#define COLA_CLIENTES 	5 		//Tamaño de la cola de espera para clientes
-#define TAM_BUFFER 		512
+#define PUERTO      5000  //Número de puerto asignado al servidor
+#define COLA_CLIENTES   5     //Tamaño de la cola de espera para clientes
+#define TAM_BUFFER    512
 #define EVER            1 
 #define ERROR           -1
 #define DIMASK          3 //especifica las dimensiones de la mascara, aqui especificamos una de 3x3
@@ -30,11 +31,16 @@ bmpInfoHeader info;
 pthread_mutex_t bloqueo;
 unsigned char *imagenRGB, *imagenGray, *imagenFiltro, *imagenRev;
 
+void error(const char *msg)
+{
+  perror(msg);
+  exit(1);
+}
 int main(int argc, char **argv)
 {
       pid_t pid;
-   	int sockfd, cliente_sockfd;
-   	struct sockaddr_in direccion_servidor; //Estructura de la familia AF_INET, que almacena direccion
+    int sockfd, cliente_sockfd;
+    struct sockaddr_in direccion_servidor; //Estructura de la familia AF_INET, que almacena direccion
       register int nh;
       pthread_t tids[NUM_HILOS];
       int nhs[NUM_HILOS] , *res;
@@ -42,52 +48,52 @@ int main(int argc, char **argv)
       char sdbuf[TAM_BUFFER];
       char revbuf[TAM_BUFFER];
 
-/*	
- *	AF_INET - Protocolo de internet IPV4
+/*  
+ *  AF_INET - Protocolo de internet IPV4
  *  htons - El ordenamiento de bytes en la red es siempre big-endian, por lo que
  *  en arquitecturas little-endian se deben revertir los bytes
  *  INADDR_ANY - Se elige cualquier interfaz de entrada
- */	
-   	memset (&direccion_servidor, 0, sizeof (direccion_servidor));	//se limpia la estructura con ceros
-   	direccion_servidor.sin_family 		= AF_INET;
-   	direccion_servidor.sin_port 		= htons(PUERTO);
-   	direccion_servidor.sin_addr.s_addr 	= INADDR_ANY;
+ */ 
+    memset (&direccion_servidor, 0, sizeof (direccion_servidor)); //se limpia la estructura con ceros
+    direccion_servidor.sin_family     = AF_INET;
+    direccion_servidor.sin_port     = htons(PUERTO);
+    direccion_servidor.sin_addr.s_addr  = INADDR_ANY;
 
       if(signal(SIGUSR1, ISRsw) == SIG_ERR){
          perror("Error en la ISR");
          exit(EXIT_FAILURE);
       }
 /*
- *	Creacion de las estructuras necesarias para el manejo de un socket
+ *  Creacion de las estructuras necesarias para el manejo de un socket
  *  SOCK_STREAM - Protocolo orientado a conexión
  */
-   	printf("Creando Socket ....\n");
-   	if( (sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0 )
-	{
-		perror("Ocurrio un problema en la creacion del socket");
-		exit(1);
-   	}
+    printf("Creando Socket ....\n");
+    if( (sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0 )
+  {
+    perror("Ocurrio un problema en la creacion del socket");
+    exit(1);
+    }
 /*
  *  bind - Se utiliza para unir un socket con una dirección de red determinada
  */
-   	printf("Configurando socket ...\n");
-   	if( bind(sockfd, (struct sockaddr *) &direccion_servidor, sizeof(direccion_servidor)) < 0 )
-	{
-		perror ("Ocurrio un problema al configurar el socket");
-		exit(1);
-   	}
+    printf("Configurando socket ...\n");
+    if( bind(sockfd, (struct sockaddr *) &direccion_servidor, sizeof(direccion_servidor)) < 0 )
+  {
+    perror ("Ocurrio un problema al configurar el socket");
+    exit(1);
+    }
 /*
  *  listen - Marca al socket indicado por sockfd como un socket pasivo, esto es, como un socket
  *  que será usado para aceptar solicitudes de conexiones de entrada usando "accept"
  *  Habilita una cola asociada la socket para alojar peticiones de conector procedentes
  *  de los procesos clientes
  */
-   	printf ("Estableciendo la aceptacion de clientes...\n");
-	if( listen(sockfd, COLA_CLIENTES) < 0 )
-	{
-		perror("Ocurrio un problema al crear la cola de aceptar peticiones de los clientes");
-		exit(1);
-   	}
+    printf ("Estableciendo la aceptacion de clientes...\n");
+  if( listen(sockfd, COLA_CLIENTES) < 0 )
+  {
+    perror("Ocurrio un problema al crear la cola de aceptar peticiones de los clientes");
+    exit(1);
+    }
 /*
  *  accept - Aceptación de una conexión
  *  Selecciona un cliente de la cola de conexiones establecidas
@@ -97,24 +103,24 @@ int main(int argc, char **argv)
  *  accept - ES BLOQUEANTE 
  */
 for(;EVER;){
-   	printf ("En espera de peticiones de conexión ...\n");
-   	if( (cliente_sockfd = accept(sockfd, NULL, NULL)) < 0 )
-	{
-		 perror("Ocurrio algun problema al atender a un cliente");
-		 exit(1);
-   	}
+    printf ("En espera de peticiones de conexión ...\n");
+    if( (cliente_sockfd = accept(sockfd, NULL, NULL)) < 0 )
+  {
+     perror("Ocurrio algun problema al atender a un cliente");
+     exit(1);
+    }
       pid = fork();
       if(!pid){ //proceso hijo...
 /*
- *	Inicia la transferencia de datos entre cliente y servidor
+ *  Inicia la transferencia de datos entre cliente y servidor
  */
          char buffer[TAM_BUFFER];
          printf("Se aceptó un cliente, atendiendolo \n");
-      	/*if( read (cliente_sockfd, buffer, TAM_BUFFER) < 0 )
-   	   {
-   		perror ("Ocurrio algun problema al recibir datos del cliente");
-   		exit(1);
-      	}
+        /*if( read (cliente_sockfd, buffer, TAM_BUFFER) < 0 )
+       {
+      perror ("Ocurrio algun problema al recibir datos del cliente");
+      exit(1);
+        }
          if( write (cliente_sockfd, "Bienvenido Cliente", 19) < 0 )
          {
             perror("Ocurrio un problema en el envio de un mensaje al cliente");
@@ -122,10 +128,10 @@ for(;EVER;){
          }*/
          printf("Comenzando a recibir datos\n");
          
-         //FILE* archivo = fopen("Sobel_Rev.bmp", "wb");
+         FILE* archivo = fopen("Sobel_Rev.bmp", "wb");
 
          //Se abre el archivo para escritura
-         /*int recibido ;
+         int recibido ;
          while((recibido= recv(cliente_sockfd,buffer, TAM_BUFFER, 0)) != 0){
             printf("recibiendo... \n");
             fwrite(buffer,sizeof(unsigned char),recibido,archivo);
@@ -133,38 +139,45 @@ for(;EVER;){
          }
          fclose(archivo);
          printf("Archivo Recibido!!!!!!!!!!\n");
-         */
-      	
+         
+        
       /*Receive File from Client */
-      FILE *fr = fopen("Sobel_Rev.bmp", "a");
-      if(fr == NULL){
-         perror("No se pudo abrir el archivo\n");
-         exit(EXIT_FAILURE);
-      }
-      else
+    /*char* fr_name = "Sobel_Rev.bmp";
+    FILE *fr = fopen(fr_name, "a");
+    if(fr == NULL)
+      printf("File %s Cannot be opened file on server.\n", fr_name);
+    else
+    {
+      bzero(revbuf, TAM_BUFFER); 
+      int fr_block_sz = 0;
+      while((fr_block_sz = recv(cliente_sockfd, revbuf, TAM_BUFFER, 0)) > 0) 
       {
-         bzero(revbuf, TAM_BUFFER); 
-         int fr_block_sz = 0;
-         while((fr_block_sz = recv(cliente_sockfd, revbuf, TAM_BUFFER, 0)) > 0) 
-         {
-             int write_sz = fwrite(revbuf, sizeof(unsigned char), fr_block_sz, fr);
-            if(write_sz < fr_block_sz){
-                 perror("Error al escribir el archivo.\n");
-                 exit(EXIT_FAILURE);
-             }
-            bzero(revbuf, TAM_BUFFER);
-            if (fr_block_sz == 0 || fr_block_sz !=512){
-               break;
-            }
-         }
-         if(fr_block_sz < 0){
-              
-            perror("Error al recibir el archivo");
-            exit(EXIT_FAILURE);
-         }
-         printf("Ok received from client!\n");
-         fclose(fr); 
+          int write_sz = fwrite(revbuf, sizeof(unsigned char), fr_block_sz, fr);
+        if(write_sz < fr_block_sz)
+          {
+              error("File write failed on server.\n");
+          }
+        bzero(revbuf, TAM_BUFFER);
+        if (fr_block_sz == 0 || fr_block_sz != 512) 
+        {
+          break;
+        }
       }
+      if(fr_block_sz < 0)
+        {
+            if (errno == EAGAIN)
+            {
+                  printf("recv() timed out.\n");
+              }
+              else
+              {
+                  fprintf(stderr, "recv() failed due to errno = %d\n", errno);
+          exit(1);
+              }
+          }
+      printf("Ok received from client!\n");
+      fclose(fr); 
+    }*/
 
       imagenRGB = abrirBMP("Sobel_Rev.bmp",&info);
       imagenGray = RGBtoGray(imagenRGB, info.width, info.height);
@@ -218,27 +231,40 @@ for(;EVER;){
       /* Send File to Client */
       //if(!fork())
       //{
-          printf("Enviando archivo");
-          FILE *fs = fopen("Sobel_paralelo.bmp", "r");
-          if(fs == NULL)
-          {
-            perror("Error al leer el archivo");
-            exit(EXIT_FAILURE);
-          }
+          /* Send File to Client */
+    //if(!fork())
+    //{
+        char* fs_name = "Sobel_paralelo.bmp";
+        printf("[Server] Sending %s to the Client...", fs_name);
+        FILE *fs = fopen(fs_name, "r");
+        if(fs == NULL)
+        {
+            fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
+        exit(1);
+        }
 
-          bzero(sdbuf, TAM_BUFFER); 
-          int fs_block_sz; 
-          while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs))>0)
-          {
-              if(send(cliente_sockfd, sdbuf, fs_block_sz, 0) < 0)
-              {
-               perror("Error al enviar el archivo");
-               exit(EXIT_FAILURE);
-              }
-              bzero(sdbuf, TAM_BUFFER);
-          }
-          printf("Ok sent to client!\n");
-          printf("Concluimos la ejecución de la aplicacion Servidor \n");
+        bzero(sdbuf, TAM_BUFFER); 
+        int fs_block_sz; 
+        /*while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs))>0)
+        {
+            if(send(cliente_sockfd, sdbuf, fs_block_sz, 0) < 0)
+            {
+                fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
+                exit(1);
+            }
+            bzero(sdbuf, TAM_BUFFER);
+        }*/
+        int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),fs);
+        while(!feof(fs)){
+          send(sockfd, leer_mensaje, byteread,0);
+          byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),fs);
+        }
+  fclose(archivo);
+        printf("Ok sent to client!\n");
+        close(cliente_sockfd);
+        printf("[Server] Connection with Client closed. Server will wait now...\n");
+        while(waitpid(-1, NULL, WNOHANG) > 0);
+    //}
 
       free(imagenGray);
  /*
@@ -251,7 +277,7 @@ for(;EVER;){
          //fin del proceso Hijo
 
       close (sockfd);
-	return 0;
+  return 0;
 
 }
 void ISRsw(int sig){
