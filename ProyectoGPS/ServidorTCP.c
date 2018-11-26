@@ -6,14 +6,16 @@
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <termios.h>
+#include <fcntl.h>
 
 #define PUERTO 			5000	//Número de puerto asignado al servidor
 #define COLA_CLIENTES 	5 		//Tamaño de la cola de espera para clientes
 #define TAM_BUFFER 		100
 #define EVER            1
 
-//este es un comentario pa ver si puedo editar en este repo 
-
+//este es un comentario pa ver si puedo editar en este repo
+int config_serial ( char *, speed_t );
 void ISRsw(int sig);
 
 int main(int argc, char **argv)
@@ -22,6 +24,11 @@ int main(int argc, char **argv)
    	int sockfd, cliente_sockfd;
    	struct sockaddr_in direccion_servidor; //Estructura de la familia AF_INET, que almacena direccion
    	char leer_mensaje[TAM_BUFFER];
+    //-----------Variables para leer el puerto serial--------
+	register int i;
+        int fd_serie;
+        unsigned char dato;
+//--------------------------------------------------------
 /*
  *	AF_INET - Protocolo de internet IPV4
  *  htons - El ordenamiento de bytes en la red es siempre big-endian, por lo que
@@ -68,6 +75,11 @@ int main(int argc, char **argv)
 		perror("Ocurrio un problema al crear la cola de aceptar peticiones de los clientes");
 		exit(1);
    	}
+    //----------------Configuración de puerto serial-------------------
+  	fd_serie = config_serial( "/dev/ttyACM0", B9600 );
+          printf("serial abierto con descriptor: %d\n", fd_serie);
+  //------------------------------------------------------------------
+
 /*
  *  accept - Aceptación de una conexión
  *  Selecciona un cliente de la cola de conexiones establecidas
