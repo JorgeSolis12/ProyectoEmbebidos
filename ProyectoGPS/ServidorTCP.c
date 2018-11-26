@@ -12,6 +12,8 @@
 #define TAM_BUFFER 		100
 #define EVER            1
 
+//este es un comentario pa ver si puedo editar en este repo 
+
 void ISRsw(int sig);
 
 int main(int argc, char **argv)
