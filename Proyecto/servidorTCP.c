@@ -114,7 +114,6 @@ for(;EVER;){
 /*
  *  Inicia la transferencia de datos entre cliente y servidor
  */
-         char buffer[TAM_BUFFER];
          printf("Se aceptó un cliente, atendiendolo \n");
         /*if( read (cliente_sockfd, buffer, TAM_BUFFER) < 0 )
        {
@@ -132,9 +131,9 @@ for(;EVER;){
 
          //Se abre el archivo para escritura
          int recibido ;
-         while((recibido= recv(cliente_sockfd,buffer, TAM_BUFFER, 0)) != 0){
+         while((recibido= recv(cliente_sockfd,revbuf, TAM_BUFFER, 0)) != 0){
             printf("recibiendo... \n");
-            fwrite(buffer,sizeof(unsigned char),recibido,archivo);
+            fwrite(revbuf,sizeof(unsigned char),recibido,archivo);
             fflush(stdout);
          }
          fclose(archivo);
@@ -228,50 +227,40 @@ for(;EVER;){
            printf("Ok sent to client!\n");
    }*/
 }
-      /* Send File to Client */
-      //if(!fork())
-      //{
           /* Send File to Client */
-    //if(!fork())
-    //{
         char* fs_name = "Sobel_paralelo.bmp";
-        printf("[Server] Sending %s to the Client...", fs_name);
+        printf("[Server] Enviando %s al cliente...", fs_name);
         FILE *fs = fopen(fs_name, "r");
         if(fs == NULL)
         {
-            fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
+            fprintf(stderr, "ERROR: Archivo %s no encontrado en servidor. (errno = %d)\n", fs_name, errno);
         exit(1);
         }
 
         bzero(sdbuf, TAM_BUFFER); 
         int fs_block_sz; 
-        /*while((fs_block_sz = fread(sdbuf, sizeof(unsigned char), TAM_BUFFER, fs))>0)
+        while((fs_block_sz = fread(sdbuf,sizeof(unsigned char),TAM_BUFFER, fs))>0)
         {
-            if(send(cliente_sockfd, sdbuf, fs_block_sz, 0) < 0)
+            send(cliente_sockfd,sdbuf, fs_block_sz,0);
+            /*if(send(cliente_sockfd, sdbuf, fs_block_sz, 0) < 0)
             {
-                fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
+                fprintf(stderr, "ERROR: Fallo al enviar el archivo %s. (errno = %d)\n", fs_name, errno);
                 exit(1);
-            }
+            }*/
+
             bzero(sdbuf, TAM_BUFFER);
-        }*/
-        int byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),fs);
-        while(!feof(fs)){
-          send(sockfd, leer_mensaje, byteread,0);
-          byteread = fread(leer_mensaje,1,sizeof(leer_mensaje),fs);
         }
-  fclose(archivo);
-        printf("Ok sent to client!\n");
+        fclose(fs);
+        printf("Ok enviando el cliente!\n");
         close(cliente_sockfd);
-        printf("[Server] Connection with Client closed. Server will wait now...\n");
+        printf("[Server] Conección cerrada cn el cliente\n");
         while(waitpid(-1, NULL, WNOHANG) > 0);
-    //}
 
       free(imagenGray);
  /*
     * Cierre de las conexiones
     */
       }
-         close (cliente_sockfd);
          kill(getppid(),SIGUSR1);
          exit(0);
          //fin del proceso Hijo

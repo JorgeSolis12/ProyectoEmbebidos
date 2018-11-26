@@ -14,8 +14,8 @@
 #define TAM_BUFFER 512
 #define BUFFSIZE 1
 #define	ERROR	-1
-#define DIR_IP "192.168.100.7"
-//#define DIR_IP "192.168.100.181"
+//#define DIR_IP "192.168.100.7"
+#define DIR_IP "192.168.0.136"
 #define URL    "calle1.bmp"
 
 unsigned char *imagenRGB, *imagenGray;
@@ -29,6 +29,8 @@ int main(int argc, char **argv)
 	struct sockaddr_in direccion_servidor;
 	char leer_mensaje[TAM_BUFFER];
 	char revbuf[TAM_BUFFER];
+	char* fr_name = "Sobel_paralelo2.bmp";
+	char* fr_nombre = "Sobel_paraleloRev.bmp";
 
 	displayInfo( &info );
 	printf("-----------------------------------------------\n");
@@ -87,6 +89,7 @@ int main(int argc, char **argv)
 
 	}
 	fclose(archivo);
+	sleep(5);
 	printf ("Recibiendo contestacion del servidor ...\n");
 	/*if (read (sockfd, &leer_mensaje, TAM_BUFFER) < 0)
 	{	
@@ -161,30 +164,30 @@ int main(int argc, char **argv)
 		}
 		printf("Ok File %s from Client was Sent!\n", fs_name);
 	//}*/
-
+	sleep(5);
 	/* Receive File from Server */
-	printf("[Client] Receiveing file from Server and saving it as final.txt...");
-	char* fr_name = "Sobel_paralelo2.bmp";
+	printf("[Client] recibiendo Archivo\n");
 	FILE *fr = fopen(fr_name, "a");
+	char sdbuf[TAM_BUFFER]; 
 	if(fr == NULL)
-		printf("File %s Cannot be opened.\n", fr_name);
+		printf("Archivo %s no pudo abrise.\n", fr_name);
 	else
 	{
 		bzero(revbuf, TAM_BUFFER);
-		int recibido ;
-         while((recibido= recv(sockfd,revbuf, TAM_BUFFER, 0)) != 0){
-            printf("recibiendo... \n");
+		/*int recibido ;
+         while((recibido= recv(sockfd,revbuf, TAM_BUFFER, 0)) > 0){
+            printf("recibiendo...\n");
             fwrite(revbuf,sizeof(unsigned char),recibido,fr);
             fflush(stdout);
          }
-         fclose(archivo); 
-		//int fr_block_sz = 0;
-	    /*while((fr_block_sz = recv(sockfd, revbuf, TAM_BUFFER, 0)) > 0)
+         fclose(fr);*/
+		int fr_block_sz = 0;
+	    while((fr_block_sz = recv(sockfd, revbuf, TAM_BUFFER, 0)) > 0)
 	    {
 			int write_sz = fwrite(revbuf, sizeof(unsigned char), fr_block_sz, fr);
 	        if(write_sz < fr_block_sz)
 			{
-	            perror("File write failed.\n");
+	            perror("Fallo al abrir el archivo.\n");
 	            exit(EXIT_FAILURE);
 	        }
 			bzero(revbuf, TAM_BUFFER);
@@ -203,8 +206,9 @@ int main(int argc, char **argv)
 			{
 				fprintf(stderr, "recv() failed due to errno = %d\n", errno);
 			}
-		}*/
-	    printf("Ok received from server!\n");
+		}
+		 
+	    printf("Ok recibido del servidor!\n");
 	    fclose(fr);
 	}
 		printf ("Cerrando la aplicacion cliente\n");
